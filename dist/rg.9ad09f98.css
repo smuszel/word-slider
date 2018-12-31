@@ -1,0 +1,61 @@
+.game {
+    --tileSize: 40px;
+    --gap: 5px;
+    --boardSize: calc(var(--edge) * var(--tileSize) + (var(--edge) - 1) * var(--gap));
+
+    display: flex;
+}
+
+.tile {
+    height: var(--tileSize);
+    width: var(--tileSize);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: lightblue;
+    position: absolute;
+    user-select: none;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-family: Arial;
+
+    top: calc(var(--y) * (var(--tileSize) + var(--gap)));
+    left: calc(var(--x) * (var(--tileSize) + var(--gap)));
+}
+
+.tile[data-state="crossed"] {
+    color: white;
+    background: salmon;
+}
+
+.tile[data-state="idle"] {
+    color: black;
+    background: #9885ff;
+}
+
+.tile[data-state="empty"] {
+    opacity: 0;
+}
+
+.board {
+    height: var(--boardSize);
+    width: var(--boardSize);
+    background: gray;
+    border: 5px solid gray;
+    position: relative;
+}
+
+.word-list {
+    height: var(--boardSize);
+    /* width: 200px; */
+    margin-left: 50px;
+    padding: 10px;
+}
+
+.word[data-state="crossed"] {
+    color: rgb(5, 3, 31);
+}
+
+.word[data-state="idle"] {
+    color: rgba(128, 128, 128, 0.61);
+}
