@@ -24614,7 +24614,7 @@ function (_React$Component) {
       var neighbours = sourceIsWordChar && targetIsBlank && areNeighbours(sourceTile, targetTile);
 
       if (neighbours) {
-        _this.props.swapTiles(sourceTile.tileid, targetTile.tileid);
+        _this.props.swapTiles(sourceTile, targetTile);
       }
     });
 
@@ -24626,6 +24626,12 @@ function (_React$Component) {
     value: function componentWillMount() {
       document.addEventListener('mouseup', this.endDrag);
       document.addEventListener('mousemove', this.checkForTileMove);
+    }
+  }, {
+    key: "componentWillUnmount",
+    value: function componentWillUnmount() {
+      document.removeEventListener('mouseup', this.endDrag);
+      document.removeEventListener('mousemove', this.checkForTileMove);
     }
   }, {
     key: "render",
@@ -24826,26 +24832,44 @@ function (_React$Component) {
 
     _this = _possibleConstructorReturn(this, (_getPrototypeOf2 = _getPrototypeOf(Game)).call.apply(_getPrototypeOf2, [this].concat(args)));
 
-    _defineProperty(_assertThisInitialized(_assertThisInitialized(_this)), "edge", undefined);
-
     _defineProperty(_assertThisInitialized(_assertThisInitialized(_this)), "state", {
-      chars: []
+      chars: [],
+      words: [],
+      levelId: undefined
     });
 
-    _defineProperty(_assertThisInitialized(_assertThisInitialized(_this)), "swapTiles", function (aId, bId) {
-      var chars = _this.state.chars.slice();
+    _defineProperty(_assertThisInitialized(_assertThisInitialized(_this)), "swapTiles", function (source, target) {
+      var oldChars = _this.state.chars.slice();
 
-      var aIx = chars[aId - 1].ix;
-      chars[aId - 1] = _objectSpread({}, chars[aId - 1], {
-        ix: chars[bId - 1].ix
-      });
-      chars[bId - 1] = _objectSpread({}, chars[bId - 1], {
-        ix: aIx
-      });
+      var nextSource = _objectSpread({}, source);
 
-      _this.setState({
-        chars: chars
-      });
+      var nextTarget = _objectSpread({}, target);
+
+      nextSource.ix = target.ix;
+      nextTarget.ix = source.ix;
+
+      var p = function p(c) {
+        return c.tileid !== nextSource.tileid && c.tileid !== nextTarget.tileid;
+      };
+
+      var chars_ = oldChars.filter(p);
+      chars_.push(nextSource);
+      chars_.push(nextTarget);
+
+      var _this$updateCrossings = _this.updateCrossings(_this.state.words, chars_),
+          words = _this$updateCrossings.words,
+          chars = _this$updateCrossings.chars;
+
+      if (words.every(function (w) {
+        return w.crossed;
+      })) {
+        _this.nextLevel();
+      } else {
+        _this.setState(_objectSpread({}, _this.state, {
+          chars: chars,
+          words: words
+        }));
+      }
     });
 
     return _this;
@@ -24854,47 +24878,52 @@ function (_React$Component) {
   _createClass(Game, [{
     key: "componentWillMount",
     value: function componentWillMount() {
-      var unpreppedChars = this.props.rows.flatMap(function (row) {
+      this.nextLevel(0);
+    }
+  }, {
+    key: "nextLevel",
+    value: function nextLevel() {
+      var levelId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : this.state.levelId + 1;
+      var level = this.props.levels[levelId];
+      var words_ = level.words.map(function (word) {
+        return {
+          word: word,
+          crossed: false
+        };
+      });
+      var levelChars = level.rows.flatMap(function (row) {
         return row.split('');
       });
-      this.state.chars = unpreppedChars.map(function (char, ix) {
+      var chars_ = levelChars.map(function (char, ix) {
         return {
           char: char,
           ix: ix,
           tileid: ix + 1
         };
       });
-      this.edge = Math.sqrt(unpreppedChars.length);
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      var gameInfo = this.gameInfo;
-      var cssProps = {
-        '--edge': this.edge
-      };
-      return _react.default.createElement("div", {
-        className: "game",
-        style: cssProps
-      }, _react.default.createElement(_Board.Board, {
-        tileData: gameInfo.tileData,
-        swapTiles: this.swapTiles
-      }), _react.default.createElement(_WordList.WordList, {
-        wordList: gameInfo.wordList
-      }));
-    }
-  }, {
-    key: "gameInfo",
-    get: function get() {
-      var _this2 = this;
+      var edge = Math.sqrt(chars_.length);
 
+      var _this$updateCrossings2 = this.updateCrossings(words_, chars_),
+          chars = _this$updateCrossings2.chars,
+          words = _this$updateCrossings2.words;
+
+      this.setState({
+        chars: chars,
+        words: words,
+        edge: edge,
+        levelId: levelId
+      });
+    }
+  }, {
+    key: "updateCrossings",
+    value: function updateCrossings(words, chars) {
       var sortByIx = function sortByIx(xs) {
         return xs.slice().sort(function (x1, x2) {
           return x1.ix > x2.ix ? 1 : -1;
         });
       };
 
-      var charsHorizontally = sortByIx(this.state.chars);
+      var charsHorizontally = sortByIx(chars);
       var charsVertically = sortByIx(transpose(charsHorizontally).map(function (c, ix) {
         return _objectSpread({}, c, {
           ix: ix
@@ -24904,39 +24933,38 @@ function (_React$Component) {
       var verticalWordBlocks = wordBlocks(charsVertically);
       var totalWordBlocks = [].concat(_toConsumableArray(horizontalWordBlocks), _toConsumableArray(verticalWordBlocks));
 
-      var getCrossInfo = function getCrossInfo(wordsToCross) {
-        return function (block) {
-          var crossStart;
-          var crossedWord;
-          wordsToCross.forEach(function (word) {
-            var rev = word.split('').reverse().join('');
-            var revCrossStartIx = block.word.indexOf(rev);
-            var crossStartIx = block.word.indexOf(word);
+      var getCrossInfo = function getCrossInfo(block) {
+        var crossStart;
+        var crossedWord;
+        words.map(function (wObj) {
+          return wObj.word;
+        }).forEach(function (word) {
+          var rev = word.split('').reverse().join('');
+          var revCrossStartIx = block.word.indexOf(rev);
+          var crossStartIx = block.word.indexOf(word);
 
-            if (crossStartIx > -1) {
-              crossedWord = word;
-              crossStart = crossStartIx;
-            } else if (revCrossStartIx > -1) {
-              crossedWord = word;
-              crossStart = revCrossStartIx;
-            }
-          });
-
-          if (crossStart != null) {
-            var crossEnd = crossStart + crossedWord.length;
-            var tileids = block.tileids.filter(function (_, ix) {
-              return ix >= crossStart && ix < crossEnd;
-            });
-            return {
-              crossedWord: crossedWord,
-              tileids: tileids
-            };
+          if (crossStartIx > -1) {
+            crossedWord = word;
+            crossStart = crossStartIx;
+          } else if (revCrossStartIx > -1) {
+            crossedWord = word;
+            crossStart = revCrossStartIx;
           }
-        };
+        });
+
+        if (crossStart != null) {
+          var crossEnd = crossStart + crossedWord.length;
+          var tileids = block.tileids.filter(function (_, ix) {
+            return ix >= crossStart && ix < crossEnd;
+          });
+          return {
+            crossedWord: crossedWord,
+            tileids: tileids
+          };
+        }
       };
 
-      var x = this.props.wordsToCross.slice();
-      var crossedBlocks = totalWordBlocks.map(getCrossInfo(x)).filter(function (i) {
+      var crossedBlocks = totalWordBlocks.map(getCrossInfo).filter(function (i) {
         return i;
       });
       var crossedTileIds = crossedBlocks.flatMap(function (i) {
@@ -24945,25 +24973,44 @@ function (_React$Component) {
       var crossedWords = crossedBlocks.map(function (i) {
         return i.crossedWord;
       });
-      var tileData = charsHorizontally.map(function (c) {
+      var edge = Math.sqrt(chars.length);
+      chars = charsHorizontally.map(function (c, ix) {
         return {
           tileid: c.tileid,
           char: c.char,
           crossed: crossedTileIds.includes(c.tileid),
-          x: ixToCoord(_this2.edge, c.ix)[0],
-          y: ixToCoord(_this2.edge, c.ix)[1]
+          x: ixToCoord(edge, ix)[0],
+          y: ixToCoord(edge, ix)[1],
+          ix: ix
         };
       });
-      var wordList = this.props.wordsToCross.map(function (word) {
+      words = words.map(function (wordObj) {
         return {
-          word: word,
-          crossed: crossedWords.includes(word)
+          word: wordObj.word,
+          crossed: crossedWords.includes(wordObj.word)
         };
       });
       return {
-        tileData: tileData,
-        wordList: wordList
+        words: words,
+        chars: chars
       };
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      var edge = Math.sqrt(this.state.chars.length);
+      var cssProps = {
+        '--edge': edge
+      };
+      return _react.default.createElement("div", {
+        className: "game",
+        style: cssProps
+      }, _react.default.createElement(_Board.Board, {
+        tileData: this.state.chars,
+        swapTiles: this.swapTiles
+      }), _react.default.createElement(_WordList.WordList, {
+        wordList: this.state.words
+      }));
     }
   }]);
 
@@ -25000,18 +25047,13 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
 
-var config2 = {
-  rows: [// 'r.klh.aa',
-  // 'dnu.s..s',
-  // '.botefe.',
-  // 'zaeh.c..',
-  // 'n.m.a..i',
-  // 'ue.ea..v',
-  // '.it.f.tt',
-  // 'ee.o.xwr'
-  'r.klh.aa', 'dnu.s..s', '.botefe.', 'zaeh.c..', 'n.m.a..i', 're.ea..v', '.it.f.tt', '..xaw...'],
-  wordsToCross: ['shaken', 'wax', 'centre', 'maze', 'abrade', 'halt', 'fate']
-};
+var levels = [{
+  rows: ['m.p', '...', '.a.'],
+  words: ['map']
+}, {
+  rows: ['r.klh.aa', 'dnu.s..s', '.botefe.', 'zaeh.c..', 'n.m.a..i', 're.ea..v', '.it.f.tt', '..xa.w..'],
+  words: ['shaken', 'wax', 'centre', 'maze', 'abrade', 'halt', 'fate']
+}];
 
 var App =
 /*#__PURE__*/
@@ -25027,7 +25069,9 @@ function (_React$Component) {
   _createClass(App, [{
     key: "render",
     value: function render() {
-      return _react.default.createElement(_Game.Game, config2);
+      return _react.default.createElement(_Game.Game, {
+        levels: levels
+      });
     }
   }]);
 

@@ -50,53 +50,42 @@ const wordBlocks = chars => {
 
 export class Game extends React.Component {
 
-    edge = undefined;
-
     state = {
-        chars: []
+        chars: [],
+        words: [],
+        levelId: undefined
     }
 
     componentWillMount() {
-        const unpreppedChars = this.props.rows.flatMap(row => row.split(''));
-        this.state.chars = unpreppedChars.map((char, ix) => ({ char, ix, tileid: ix + 1 }));
-        this.edge = Math.sqrt(unpreppedChars.length);
+        this.nextLevel(0);
+    }
+    
+    nextLevel(levelId = this.state.levelId + 1) {
+        const level = this.props.levels[levelId];
+        const words_ = level.words.map(word => ({ word, crossed: false }));
+        const levelChars = level.rows.flatMap(row => row.split(''));
+        const chars_ = levelChars.map((char, ix) => ({ char, ix, tileid: ix + 1 }));
+        const edge = Math.sqrt(chars_.length);
+
+        const { chars, words } = this.updateCrossings(words_, chars_);
+
+        this.setState({ chars, words, edge, levelId });
     }
 
-    swapTiles = (aId, bId) => {
-        const chars = this.state.chars.slice();
-        const aIx = chars[aId - 1].ix;
-        chars[aId - 1] = { ...chars[aId - 1], ix: chars[bId - 1].ix };
-        chars[bId - 1] = { ...chars[bId - 1], ix: aIx };
-
-        this.setState({ chars })
-    }
-
-    render() {
-        const gameInfo = this.gameInfo;
-        const cssProps = { '--edge': this.edge };
-        
-        return (
-            <div className="game" style={cssProps} >
-                <Board tileData={gameInfo.tileData} swapTiles={this.swapTiles}></Board>
-                <WordList wordList={gameInfo.wordList}></WordList>
-            </div>
-        )
-    }
-
-    get gameInfo() {
+    updateCrossings(words, chars) {
         const sortByIx = xs => xs.slice().sort((x1, x2) => x1.ix > x2.ix ? 1 : -1);
-        const charsHorizontally = sortByIx(this.state.chars);
+        const charsHorizontally = sortByIx(chars);
         const charsVertically = sortByIx(transpose(charsHorizontally).map((c, ix) => ({ ...c, ix })));
-        
+
         const horizontalWordBlocks = wordBlocks(charsHorizontally);
         const verticalWordBlocks = wordBlocks(charsVertically);
         const totalWordBlocks = [...horizontalWordBlocks, ...verticalWordBlocks];
 
-        const getCrossInfo = wordsToCross => block => {
+        const getCrossInfo = block => {
             let crossStart
             let crossedWord
-            
-            wordsToCross.forEach(word => {
+
+            words.map(wObj => wObj.word).forEach(word => {
                 const rev = word.split('').reverse().join('');
                 const revCrossStartIx = block.word.indexOf(rev);
                 const crossStartIx = block.word.indexOf(word);
@@ -117,24 +106,57 @@ export class Game extends React.Component {
             }
         }
 
-        const x = this.props.wordsToCross.slice();
-        const crossedBlocks = totalWordBlocks.map(getCrossInfo(x)).filter(i => i);
+        const crossedBlocks = totalWordBlocks.map(getCrossInfo).filter(i => i);
         const crossedTileIds = crossedBlocks.flatMap(i => i.tileids);
         const crossedWords = crossedBlocks.map(i => i.crossedWord);
+        const edge = Math.sqrt(chars.length);
 
-        const tileData = charsHorizontally.map(c => ({
+        chars = charsHorizontally.map((c, ix) => ({
             tileid: c.tileid,
             char: c.char,
             crossed: crossedTileIds.includes(c.tileid),
-            x: ixToCoord(this.edge, c.ix)[0],
-            y: ixToCoord(this.edge, c.ix)[1]
+            x: ixToCoord(edge, ix)[0],
+            y: ixToCoord(edge, ix)[1],
+            ix
         }));
 
-        const wordList = this.props.wordsToCross.map(word => ({
-            word,
-            crossed: crossedWords.includes(word)
+        words = words.map(wordObj => ({
+            word: wordObj.word,
+            crossed: crossedWords.includes(wordObj.word)
         }));
-        
-        return { tileData, wordList };
+
+        return { words, chars };
+    }
+
+    swapTiles = (source, target) => {
+        const oldChars = this.state.chars.slice();
+        const nextSource = { ...source };
+        const nextTarget = { ...target };
+        nextSource.ix = target.ix;
+        nextTarget.ix = source.ix;
+        const p = c => c.tileid !== nextSource.tileid && c.tileid !== nextTarget.tileid;
+        const chars_ = oldChars.filter(p);
+        chars_.push(nextSource);
+        chars_.push(nextTarget);
+
+        const { words, chars } = this.updateCrossings(this.state.words, chars_);
+
+        if (words.every(w => w.crossed)) {
+            this.nextLevel();
+        } else {
+            this.setState({ ...this.state, chars, words })
+        }
+    }
+
+    render() {
+        const edge = Math.sqrt(this.state.chars.length)
+        const cssProps = { '--edge': edge };
+
+        return (
+            <div className="game" style={cssProps} >
+                <Board tileData={this.state.chars} swapTiles={this.swapTiles}></Board>
+                <WordList wordList={this.state.words}></WordList>
+            </div>
+        )
     }
 }

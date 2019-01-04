@@ -55,13 +55,18 @@ export class Board extends React.Component {
         const neighbours = sourceIsWordChar && targetIsBlank && areNeighbours(sourceTile, targetTile)
 
         if (neighbours) {
-            this.props.swapTiles(sourceTile.tileid, targetTile.tileid);
+            this.props.swapTiles(sourceTile, targetTile);
         }
     } 
 
     componentWillMount() {
         document.addEventListener('mouseup', this.endDrag)
         document.addEventListener('mousemove', this.checkForTileMove)
+    }
+    
+    componentWillUnmount() {
+        document.removeEventListener('mouseup', this.endDrag)
+        document.removeEventListener('mousemove', this.checkForTileMove)
     }
 
     render() {

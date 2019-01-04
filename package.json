@@ -11,5 +11,9 @@
     },
     "peerDependencies": {
         "@babel/core": "^7.0.0"
+    },
+    "scripts": {
+        "start": "parcel index.html",
+        "build": "rm -rf ./docs/* && parcel build index.html -d docs"
     }
 }
