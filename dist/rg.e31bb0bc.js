@@ -24882,8 +24882,7 @@ function (_React$Component) {
       }), _react.default.createElement(_WordList.WordList, {
         wordList: gameInfo.wordList
       }));
-    } // Bug: 'abc' in 'abcd'
-
+    }
   }, {
     key: "gameInfo",
     get: function get() {
@@ -24907,19 +24906,28 @@ function (_React$Component) {
 
       var getCrossInfo = function getCrossInfo(wordsToCross) {
         return function (block) {
-          var norm = block.word;
-          var rev = norm.split('').reverse().join('');
+          var crossStart;
+          var crossedWord;
+          wordsToCross.forEach(function (word) {
+            var rev = word.split('').reverse().join('');
+            var revCrossStartIx = block.word.indexOf(rev);
+            var crossStartIx = block.word.indexOf(word);
 
-          if (norm) {
-            var n = wordsToCross.find(function (w) {
-              return w === norm;
+            if (crossStartIx > -1) {
+              crossedWord = word;
+              crossStart = crossStartIx;
+            } else if (revCrossStartIx > -1) {
+              crossedWord = word;
+              crossStart = revCrossStartIx;
+            }
+          });
+
+          if (crossStart != null) {
+            var crossEnd = crossStart + crossedWord.length;
+            var tileids = block.tileids.filter(function (_, ix) {
+              return ix >= crossStart && ix < crossEnd;
             });
-            var r = wordsToCross.find(function (w) {
-              return w === rev;
-            });
-            var tileids = block.tileids;
-            var crossedWord = n || r;
-            return crossedWord && {
+            return {
               crossedWord: crossedWord,
               tileids: tileids
             };
@@ -25001,8 +25009,8 @@ var config2 = {
   // 'ue.ea..v',
   // '.it.f.tt',
   // 'ee.o.xwr'
-  'r.klh.aa', 'dnu.s..s', '.botefe.', 'zaeh.c..', 'n.m.a..i', 'ue.ea..v', '.it.f.tt', '..xaw...'],
-  wordsToCross: ['shaken', 'axis', 'wax', 'ham', 'centre', 'maze', 'abrade', 'virtue', 'halt', 'fake']
+  'r.klh.aa', 'dnu.s..s', '.botefe.', 'zaeh.c..', 'n.m.a..i', 're.ea..v', '.it.f.tt', '..xaw...'],
+  wordsToCross: ['shaken', 'wax', 'centre', 'maze', 'abrade', 'halt', 'fate']
 };
 
 var App =
@@ -25054,7 +25062,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "64814" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "54623" + '/');
 
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);

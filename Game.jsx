@@ -83,7 +83,6 @@ export class Game extends React.Component {
         )
     }
 
-    // Bug: 'abc' in 'abcd'
     get gameInfo() {
         const sortByIx = xs => xs.slice().sort((x1, x2) => x1.ix > x2.ix ? 1 : -1);
         const charsHorizontally = sortByIx(this.state.chars);
@@ -94,16 +93,27 @@ export class Game extends React.Component {
         const totalWordBlocks = [...horizontalWordBlocks, ...verticalWordBlocks];
 
         const getCrossInfo = wordsToCross => block => {
-            const norm = block.word;
-            const rev = norm.split('').reverse().join('');
+            let crossStart
+            let crossedWord
+            
+            wordsToCross.forEach(word => {
+                const rev = word.split('').reverse().join('');
+                const revCrossStartIx = block.word.indexOf(rev);
+                const crossStartIx = block.word.indexOf(word);
 
-            if (norm) {
-                const n = wordsToCross.find(w => w === norm);
-                const r = wordsToCross.find(w => w === rev);
-                const tileids = block.tileids;
-                const crossedWord = n || r;
-    
-                return crossedWord && { crossedWord, tileids };
+                if (crossStartIx > -1) {
+                    crossedWord = word
+                    crossStart = crossStartIx;
+                } else if (revCrossStartIx > -1) {
+                    crossedWord = word
+                    crossStart = revCrossStartIx;
+                }
+            });
+
+            if (crossStart != null) {
+                const crossEnd = crossStart + crossedWord.length
+                const tileids = block.tileids.filter((_, ix) => ix >= crossStart && ix < crossEnd);
+                return { crossedWord, tileids };
             }
         }
 

@@ -17,21 +17,18 @@ const config2 = {
         '.botefe.',
         'zaeh.c..',
         'n.m.a..i',
-        'ue.ea..v',
+        're.ea..v',
         '.it.f.tt',
         '..xaw...'
     ],
     wordsToCross: [
         'shaken',
-        'axis',
         'wax',
-        'ham',
         'centre',
         'maze',
         'abrade',
-        'virtue',
         'halt',
-        'fake'
+        'fate'
     ]
 }
 
